@@ -27,6 +27,16 @@ class StemSeparator:
     def __init__(self, model_name: str = "htdemucs_ft") -> None:
         self.model_name = model_name
 
+    def _resolve_device(self) -> str:
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                return "cuda"
+        except Exception as exc:
+            LOGGER.warning("Could not query CUDA availability, defaulting to CPU: %s", exc)
+        return "cpu"
+
     def separate_to_directory(
         self,
         source_file: Path,
@@ -43,14 +53,17 @@ class StemSeparator:
         if progress_callback:
             progress_callback("Loading model", 0.05)
 
+        device = self._resolve_device()
+        LOGGER.info("Using separation device=%s", device)
+
         stems_data: Dict[str, object] | None = None
         import_error: str | None = None
 
         try:
             from demucs.api import Separator
 
-            separator = Separator(model=self.model_name)
-            LOGGER.info("Using demucs.api Separator")
+            separator = Separator(model=self.model_name, device=device)
+            LOGGER.info("Using demucs.api Separator on device=%s", device)
             if progress_callback:
                 progress_callback("Running separation", 0.2)
             _, stems_data = separator.separate_audio_file(source_file)
@@ -62,7 +75,7 @@ class StemSeparator:
             if progress_callback:
                 progress_callback("Falling back to Demucs CLI", 0.2)
             LOGGER.info("Falling back to CLI separation path")
-            return self._separate_with_cli(source_file, destination_dir, progress_callback, import_error)
+            return self._separate_with_cli(source_file, destination_dir, progress_callback, import_error, device)
 
         if progress_callback:
             progress_callback("Saving stems", 0.8)
@@ -101,6 +114,7 @@ class StemSeparator:
         destination_dir: Path,
         progress_callback: Optional[ProgressCallback],
         import_error: str | None,
+        device: str,
     ) -> Dict[str, Path]:
         command = [
             sys.executable,
@@ -108,6 +122,8 @@ class StemSeparator:
             "demucs.separate",
             "-n",
             self.model_name,
+            "-d",
+            device,
             "-o",
             str(destination_dir),
             str(source_file),

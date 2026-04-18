@@ -4,4 +4,5 @@ soundfile>=0.12.1
 yt-dlp>=2024.3.10
 demucs>=4.0.1
 torch>=2.1.0
+torchaudio>=2.1.0
 torchcodec>=0.1.1

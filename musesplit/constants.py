@@ -13,11 +13,8 @@ SUPPORTED_AUDIO_EXTENSIONS = {
 }
 DEFAULT_MODEL = "htdemucs_ft"
 DEMUCS_MODEL_OPTIONS = [
-    "htdemucs",
     "htdemucs_ft",
     "mdx",
     "mdx_extra",
-    "mdx_extra_q",
-    "mdx_q",
 ]
 DEFAULT_EXPORT_FORMAT = "wav"
