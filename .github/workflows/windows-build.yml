@@ -2,10 +2,20 @@ name: Build Windows Executable
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional version for manual build (example: v0.2.0)"
+        required: false
+        type: string
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -44,13 +54,64 @@ jobs:
             --collect-all torchaudio `
             musesplit/main.py
 
-      - name: Create ZIP artifact
+      - name: Resolve build version
+        id: version
         shell: pwsh
         run: |
-          Compress-Archive -Path dist/MuseSplit/* -DestinationPath dist/MuseSplit-windows.zip -Force
+          $ref = "${{ github.ref }}"
+          $refName = "${{ github.ref_name }}"
+          $manualVersion = "${{ github.event.inputs.version }}"
+
+          if ($ref.StartsWith("refs/tags/")) {
+            $version = $refName
+          } elseif (-not [string]::IsNullOrWhiteSpace($manualVersion)) {
+            $version = $manualVersion
+          } else {
+            $version = "dev-${{ github.run_number }}"
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "release_zip=dist/MuseSplit-windows-$version.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MuseSplit-windows
-          path: dist/MuseSplit-windows.zip
+          name: MuseSplit-windows-${{ steps.version.outputs.version }}
+          path: dist/MuseSplit
+
+      - name: Create release bundle
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/MuseSplit/* -DestinationPath "${{ steps.version.outputs.release_zip }}" -Force
+
+      - name: Publish versioned release (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: MuseSplit ${{ github.ref_name }}
+          body: |
+            Versioned Windows build for ${{ github.ref_name }}.
+            Commit: ${{ github.sha }}
+          draft: false
+          prerelease: false
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          artifacts: ${{ steps.version.outputs.release_zip }}
+
+      - name: Publish latest build to Releases
+        if: github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/tags/v')
+        uses: ncipollo/release-action@v1
+        with:
+          tag: windows-build-latest
+          name: MuseSplit Windows Latest Build
+          body: |
+            Auto-updated Windows build (${{ steps.version.outputs.version }}).
+            Commit: ${{ github.sha }}
+          prerelease: true
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          artifacts: ${{ steps.version.outputs.release_zip }}
