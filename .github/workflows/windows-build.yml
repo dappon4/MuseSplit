@@ -1,0 +1,56 @@
+name: Build Windows Executable
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Windows app (PyInstaller)
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --windowed `
+            --name MuseSplit `
+            --collect-all PyQt6 `
+            --collect-all demucs `
+            --collect-all torch `
+            --collect-all torchaudio `
+            musesplit/main.py
+
+      - name: Create ZIP artifact
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/MuseSplit/* -DestinationPath dist/MuseSplit-windows.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MuseSplit-windows
+          path: dist/MuseSplit-windows.zip
