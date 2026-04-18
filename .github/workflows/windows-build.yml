@@ -52,7 +52,7 @@ jobs:
             --collect-all demucs `
             --collect-all torch `
             --collect-all torchaudio `
-            musesplit/main.py
+            run_musesplit.py
 
       - name: Resolve build version
         id: version

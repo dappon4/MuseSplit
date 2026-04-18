@@ -8,11 +8,19 @@ import sys
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from .config import resolve_app_paths
-from .constants import APP_NAME, DEFAULT_MODEL
-from .logger import configure_logging
-from .ui.main_window import MainWindow
-from .ui.theme import app_stylesheet
+try:
+    from .config import resolve_app_paths
+    from .constants import APP_NAME, DEFAULT_MODEL
+    from .logger import configure_logging
+    from .ui.main_window import MainWindow
+    from .ui.theme import app_stylesheet
+except ImportError:
+    # Fallback for script-like execution contexts (e.g. some bundled entry modes).
+    from musesplit.config import resolve_app_paths
+    from musesplit.constants import APP_NAME, DEFAULT_MODEL
+    from musesplit.logger import configure_logging
+    from musesplit.ui.main_window import MainWindow
+    from musesplit.ui.theme import app_stylesheet
 
 LOGGER = logging.getLogger(__name__)
 
